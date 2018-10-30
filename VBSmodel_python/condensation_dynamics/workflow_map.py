@@ -85,6 +85,12 @@ def model():
     )
 
     dsp.add_function(
+        function=fun.calculate_knudsen_number,
+        inputs=['particle diameter', 'particle critical diameter'],
+        outputs=['knudsen_number']
+    )
+
+    dsp.add_function(
         function=fun.calculate_full_deposition_speed,
         inputs=['accommodation coefficient', 'molecular size enhancement',
                 'transition correction', 'center of mass speed'],
@@ -113,5 +119,18 @@ def model():
         function=fun.calculate_diameter_growth_rate,
         inputs=['full deposition speed', 'gas density'],
         outputs=['diameter growth rate']
+    )
+
+    dsp.add_function(
+        function=fun.calculate_kelvin_term,
+        inputs=['particle diameter', 'kelvin diameter'],
+        outputs=['kelvin term']
+    )
+
+    dsp.add_function(
+        function=fun.calculate_evaporation_timescale,
+        inputs=['particle diameter', 'kelvin term', 'full deposition '
+                'speed', 'saturation ''concentration', 'gas density'],
+        outputs=['evaporation timescale']
     )
     return dsp

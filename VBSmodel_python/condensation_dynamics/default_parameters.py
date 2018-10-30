@@ -9,7 +9,8 @@ dfl = {
         'gas_molar_weight': 250,  # typical organics gas molar weight [g/mol].
         'air_mass': 29,  # mass of air [g/mol].
         'air_density': 874,  # density of liquid air [kg/m3].
-        'molecular_diameter': 0.9  # typical organic gas diameter [nm].
+        'molecular_diameter': 0.9,  # typical organic gas diameter [nm].
+        'C*': 1  # saturation concentration [ug/m3].
         },
 
 
@@ -32,9 +33,10 @@ dfl = {
         # useful conversion factors
 
         'kg2g': 1e3,  # kilograms to grams.
+        'kg2ug': 1e9,  # kilograms to micrograms.
         'nm2m': 1e-9,  # nanometer to meters.
         'kg2kg/mol': 1.660538921e-27,  # kg to kg/mol.
-        'sec2hr': 3.6e3  # sec to hours.
+        'sec2hr': 1/3.6e3  # sec to hours.
 
     }
 }

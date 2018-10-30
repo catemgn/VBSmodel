@@ -4,7 +4,7 @@ from .default_parameters import dfl
 
 
 def calculate_mean_molecular_speed(molecular_mass, temperature=dfl['values'][
-     'temperature']):
+    'temperature']):
     """
     Calculates the mean molecular speed of a organic gas molecule [m/s].(It is
     related to the collision speed between gas molecule and aerosol particle).
@@ -138,7 +138,7 @@ def calculate_particle_mass(particle_volume, gas_density=dfl['values'][
     """
 
     return particle_volume * gas_density * dfl['conversions']['kg2kg/mol'] * \
-        dfl['conversions']['kg2g']
+           dfl['conversions']['kg2g']
 
 
 def calculate_reduced_mass(particle_mass, molecular_mass):
@@ -246,6 +246,27 @@ def calculate_molecular_size_enhancement(particle_diameter, molecular_diameter):
             particle_diameter ** 2)
 
 
+def calculate_knudsen_number(particle_critical_diameter, particle_diameter):
+    """
+    calculates a modified Knudsen Number based on the critical particle
+    diameter [-].
+
+    :param particle_critical_diameter:
+        critical diameter of the particle [nm].
+    :type particle_diameter: float
+
+    :param particle_diameter:
+        diameter of the particle [nm].
+    :type particle_diameter: float
+
+    :return:
+        Knudsen Number [-].
+    :rtype: float
+    """
+
+    return particle_critical_diameter / particle_diameter
+
+
 # TODO revise formulas inside the transition regime function (bsxfun)
 def calculate_transition_regime_correction(particle_diameter,
                                            critical_particle_diameter=dfl[
@@ -277,6 +298,7 @@ def calculate_transition_regime_correction(particle_diameter,
     :rtype: float
     """
 
+    # TODO why is defined like that chek the paper?
     # calculate the Knudsen Number:
     km = (3 / 4) * particle_diameter / critical_particle_diameter
 
@@ -396,5 +418,65 @@ def calculate_diameter_growth_rate(full_deposition_speed, gas_density):
     :rtype: float
     """
 
-    return 2 * full_deposition_speed / gas_density * dfl['conversions'][
+    return 2 * full_deposition_speed / gas_density / dfl['conversions'][
         'sec2hr']
+
+
+def calculate_kelvin_term(particle_diameter, kelvin_diameter):
+    """
+    Calculates the Kelvin Term [-]. #TODO improve function documentation.
+
+    :param particle_diameter:
+        particle diameter [nm].
+    :type particle_diameter: float
+
+    :param kelvin_diameter:
+        Kelvin diameter [nm].
+    :type kelvin_diameter: float
+
+    :return:
+        Kelvin Term [-].
+    :rtype: float
+    """
+
+    return 10 ** (kelvin_diameter / particle_diameter)
+
+
+def calculate_evaporation_timescale(full_deposition_speed, kelvin_term,
+                                    particle_diameter,
+                                    gas_density=dfl['values']['gas_density'],
+                                    saturation_concentration=dfl['values'][
+                                        'C*']):
+    """
+    Calculates the time for evaporation of constituent from a particle
+    at the low mass fraction limit (i.e. when the diameter does not change as
+    the constituent evaporates [hr].
+
+    :param full_deposition_speed:
+        full corrected deposition speed [m/s].
+    :type full_deposition_speed: float
+
+    :param kelvin_term:
+        kelvin_term [-].
+    :type kelvin_term: float
+
+    :param particle_diameter:
+        particle diameter [nm].
+    :type particle_diameter: float
+
+    :param: gas_density:
+        typical organic gas density [kg/m3].
+    :type gas_density: float
+
+    :param saturation_concentration:
+        saturation concentration (volatility) [ug/m3].
+     :type saturation_concentration: float
+
+    :return:
+        evaporation timescale [hr].
+    :rtype: float
+    """
+
+    return dfl['values']['sec2hr'] * (gas_density * particle_diameter * dfl[
+        'values']['nm2m']) / (6 * full_deposition_speed * kelvin_term *
+        saturation_concentration / dfl['values']['kg2ug'])
