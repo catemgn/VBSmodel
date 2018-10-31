@@ -5,6 +5,8 @@ from VBSmodel_python.condensation_dynamics import functions as fun
 def model():
     """
     Returns a workflow map of the model (dispatcher).
+    WARNING! make sure that the order of the inputs is exactly the same of the
+    order of inputs in the corresponding function.
 
     :return:
         workflow map of the model.
@@ -79,15 +81,14 @@ def model():
 
     dsp.add_function(
         function=fun.calculate_transition_regime_correction,
-        inputs=['particle diameter', 'particle critical diameter',
-                'accommodation coefficient'],
+        inputs=['accommodation coefficient', 'knudsen number'],
         outputs=['transition correction']
     )
 
     dsp.add_function(
         function=fun.calculate_knudsen_number,
         inputs=['particle diameter', 'particle critical diameter'],
-        outputs=['knudsen_number']
+        outputs=['knudsen number']
     )
 
     dsp.add_function(
@@ -130,7 +131,24 @@ def model():
     dsp.add_function(
         function=fun.calculate_evaporation_timescale,
         inputs=['particle diameter', 'kelvin term', 'full deposition '
-                'speed', 'saturation ''concentration', 'gas density'],
+                                                    'speed',
+                'saturation ''concentration', 'gas density'],
         outputs=['evaporation timescale']
     )
+
+    dsp.add_function(
+        function=fun.calculate_particle_surface,
+        inputs=['particle diameter'],
+        outputs=['particle surface']
+    )
+
+    dsp.add_function(
+        function=fun.calculate_collision_frequency,
+        inputs=['particle surface',
+                'full deposition speed',
+                'molecular mass', 'vapour concentration'],
+        outputs=['collision frequency']
+    )
+
     return dsp
+

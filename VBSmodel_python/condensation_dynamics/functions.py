@@ -1,5 +1,6 @@
 import scipy.constants as const
 import math
+import numpy as np
 from .default_parameters import dfl
 
 
@@ -137,8 +138,7 @@ def calculate_particle_mass(particle_volume, gas_density=dfl['values'][
     :rtype: float
     """
 
-    return particle_volume * gas_density * dfl['conversions']['kg2kg/mol'] * \
-           dfl['conversions']['kg2g']
+    return particle_volume * gas_density / dfl['conversions']['g/mol2kg']
 
 
 def calculate_reduced_mass(particle_mass, molecular_mass):
@@ -181,8 +181,8 @@ def calculate_center_mass_speed_1(reduced_mass, temperature=dfl[
     :rtype: float
     """
 
-    return math.sqrt((8 * dfl['conversions'][
-        'kg2g'] * const.R * temperature) / (const.pi * reduced_mass))
+    return (8 * dfl['conversions']['kg2g'] * const.R * temperature / (
+            const.pi * reduced_mass)) ** 0.5 / 4
 
 
 def calculate_speed_enhancement_factor(particle_mass, molecular_mass):
@@ -202,7 +202,7 @@ def calculate_speed_enhancement_factor(particle_mass, molecular_mass):
      :rtype: float
      """
 
-    return math.sqrt((particle_mass + molecular_mass) / particle_mass)
+    return ((particle_mass + molecular_mass) / particle_mass) ** 0.5
 
 
 def calculate_center_mass_speed_2(mean_molecular_speed,
@@ -246,65 +246,54 @@ def calculate_molecular_size_enhancement(particle_diameter, molecular_diameter):
             particle_diameter ** 2)
 
 
-def calculate_knudsen_number(particle_critical_diameter, particle_diameter):
+def calculate_knudsen_number(particle_diameter, particle_critical_diameter):
     """
     calculates a modified Knudsen Number based on the critical particle
     diameter [-].
 
-    :param particle_critical_diameter:
-        critical diameter of the particle [nm].
-    :type particle_diameter: float
-
     :param particle_diameter:
         diameter of the particle [nm].
     :type particle_diameter: float
+
+    :param particle_critical_diameter:
+        critical diameter of the particle [nm].
+    :type particle_critical_diameter: float
 
     :return:
         Knudsen Number [-].
     :rtype: float
     """
 
-    return particle_critical_diameter / particle_diameter
+    # TODO why is 3/4? not in the paper...
+    return 3 / 4 * particle_critical_diameter / particle_diameter
 
 
 # TODO revise formulas inside the transition regime function (bsxfun)
-def calculate_transition_regime_correction(particle_diameter,
-                                           critical_particle_diameter=dfl[
-                                               'functions'][
-                                               'transition_regime_correction']
-                                           ['dp_critic'],
-                                           accommodation_coefficient=dfl[
-                                               'functions'][
-                                               'transition_regime_correction']
-                                           ['alpha']):
+def calculate_transition_regime_correction(accommodation_coefficient,
+                                           knudsen_number):
     """
     calculates the transition regime correction factor based on Fuchs and
     Sutugun.
 
-    :param particle_diameter:
-        diameter of the particle [nm].
-    :type particle_diameter: float
-
-    :param critical_particle_diameter:
-        critical diameter of the particle [nm].
-    :type critical_particle_diameter: float
-
     :param accommodation_coefficient:
         accommodation coefficient of the gas molecule on the particle [-].
     :type accommodation_coefficient: float
+
+    :param knudsen_number:
+        knudsen number [-].
+    :type knudsen_number: float
 
     :return:
         transition regime correction from kinetic to continuum [-].
     :rtype: float
     """
 
-    # TODO why is defined like that chek the paper?
+    # TODO why is defined like that check the paper...?
     # calculate the Knudsen Number:
-    km = (3 / 4) * particle_diameter / critical_particle_diameter
-
-    return (1 + km) * (0.75 * accommodation_coefficient * km + 1) / (km * (
-            0.75 * accommodation_coefficient * km + 1 + 0.283 *
-            accommodation_coefficient) + 1)
+    # km = (3 / 4) * particle_diameter / critical_particle_diameter
+    km = knudsen_number
+    return km * (1 + km) / (km ** 2 + km + 0.75 * accommodation_coefficient +
+                            0.283 * km * accommodation_coefficient)
 
 
 def calculate_full_deposition_speed(accommodation_coefficient,
@@ -442,15 +431,17 @@ def calculate_kelvin_term(particle_diameter, kelvin_diameter):
     return 10 ** (kelvin_diameter / particle_diameter)
 
 
-def calculate_evaporation_timescale(full_deposition_speed, kelvin_term,
-                                    particle_diameter,
-                                    gas_density=dfl['values']['gas_density'],
-                                    saturation_concentration=dfl['values'][
-                                        'C*']):
+def calculate_evaporation_timescale(particle_diameter, kelvin_term,
+                                    full_deposition_speed,
+                                    saturation_concentration, gas_density):
     """
     Calculates the time for evaporation of constituent from a particle
     at the low mass fraction limit (i.e. when the diameter does not change as
     the constituent evaporates [hr].
+
+    :param particle_diameter:
+        particle diameter [nm].
+    :type particle_diameter: float
 
     :param full_deposition_speed:
         full corrected deposition speed [m/s].
@@ -460,23 +451,70 @@ def calculate_evaporation_timescale(full_deposition_speed, kelvin_term,
         kelvin_term [-].
     :type kelvin_term: float
 
-    :param particle_diameter:
-        particle diameter [nm].
-    :type particle_diameter: float
-
     :param: gas_density:
         typical organic gas density [kg/m3].
     :type gas_density: float
 
     :param saturation_concentration:
         saturation concentration (volatility) [ug/m3].
-     :type saturation_concentration: float
+    :type saturation_concentration: float
 
     :return:
         evaporation timescale [hr].
     :rtype: float
     """
 
-    return dfl['values']['sec2hr'] * (gas_density * particle_diameter * dfl[
-        'values']['nm2m']) / (6 * full_deposition_speed * kelvin_term *
-        saturation_concentration / dfl['values']['kg2ug'])
+    return dfl['conversions']['sec2hr'] * (
+                gas_density * particle_diameter * dfl['conversions'][
+            'nm2m']) / (6 * full_deposition_speed * kelvin_term * saturation_concentration /
+                   dfl['conversions']['kg2ug'])
+
+
+def calculate_particle_surface(particle_diameter):
+    """
+    Calculates the surface area of a particle for a given diameter [nm2].
+
+    :param particle_diameter:
+        particle diameter [nm].
+    :type particle_diameter: float
+
+    :return:
+        particle surface area [nm2].
+    :rtype:float
+    """
+
+    return math.pi * particle_diameter ** 2
+
+
+# TODO remember that for coll freq the dep speed is calculated with alpha =1!
+def calculate_collision_frequency(particle_surface, full_deposition_speed,
+                                  molecular_mass,
+                                  vapour_concentration=dfl['values']['Cv']):
+    """
+    Calculates the frequency with which molecules collide with a particle [1/s].
+
+    :param particle_surface:
+        surface area of the particle [nm2].
+    :type particle_surface: float
+
+    :param full_deposition_speed:
+        full corrected deposition speed [m/s].
+    :type full_deposition_speed: float
+
+    :param molecular_mass:
+         mass of the organic gas molecule [g/mol].
+    :type molecular_mass: float
+
+    :param vapour_concentration:
+        Concentration of the species in the gas phase [ug/m3].
+    :type vapour_concentration: float
+
+    :return:
+        molecule-particle collision frequency [1/s].
+    :rtype: float
+    """
+    #TODO check conversions...
+    return particle_surface * (dfl['conversions'][
+        'nm2m'] ** 2) * full_deposition_speed * (vapour_concentration /dfl[
+        'conversions']['kg2ug'])/(molecular_mass*dfl['conversions'][
+        'g/mol2kg'])

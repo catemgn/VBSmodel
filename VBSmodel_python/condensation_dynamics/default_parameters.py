@@ -10,7 +10,8 @@ dfl = {
         'air_mass': 29,  # mass of air [g/mol].
         'air_density': 874,  # density of liquid air [kg/m3].
         'molecular_diameter': 0.9,  # typical organic gas diameter [nm].
-        'C*': 1  # saturation concentration [ug/m3].
+        'C*': 1,  # saturation concentration [ug/m3].
+        'Cv': 0.001  # vapour concentration [ug/m3].
         },
 
 
@@ -24,7 +25,6 @@ dfl = {
             # diameter and the collisional diameter [-].
         },
         'transition_regime_correction': {
-            'dp_critic': 110,  # particle critical diameter [nm].
             'alpha': 1  # accommodation parameter [-].
         }
     },
@@ -34,9 +34,10 @@ dfl = {
 
         'kg2g': 1e3,  # kilograms to grams.
         'kg2ug': 1e9,  # kilograms to micrograms.
+        'g2ug': 1e6,  # grams to micrograms.
         'nm2m': 1e-9,  # nanometer to meters.
-        'kg2kg/mol': 1.660538921e-27,  # kg to kg/mol.
-        'sec2hr': 1/3.6e3  # sec to hours.
+        'g/mol2kg': 1.660538921e-27,  # g/mol (or amu) to kg.
+        'sec2hr': 1/3.6e3  # seconds to hours.
 
     }
 }
