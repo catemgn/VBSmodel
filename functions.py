@@ -1,10 +1,10 @@
 import scipy.constants as const
 import math
-from default_parameters import dfl
+from .default_parameters import dfl
 
 
 def calculate_mean_molecular_speed(molecular_mass, temperature=dfl['values'][
-     'temperature']):
+        'temperature']):
     """
     Calculates the mean molecular speed of a organic gas molecule [m/s].(It is
     related to the collision speed between gas molecule and aerosol particle).
@@ -22,8 +22,8 @@ def calculate_mean_molecular_speed(molecular_mass, temperature=dfl['values'][
     :rtype: float
     """
 
-    return math.sqrt((8 * dfl['conversions'][
-        'kg2g'] * const.R * temperature) / (const.pi * molecular_mass))
+    return ((8 * dfl['conversions'][
+        'kg2g'] * const.R * temperature) / (const.pi * molecular_mass)) ** 0.5
 
 
 def calculate_molecular_diffusion_constant(molecular_mass=dfl['values'][
@@ -80,7 +80,8 @@ def calculate_molecular_diffusion_constant(molecular_mass=dfl['values'][
 
 
 def calculate_particle_critical_diameter(mean_molecular_speed,
-                                         diffusion_constant):
+                                         diffusion_constant,
+                                         accommodation_coefficient):
     """
     Calculates the critical diameter, i.e. the crossover between kinetic and
     continuum deposition speeds as defined in Donahue 2017 [nm].
@@ -91,15 +92,20 @@ def calculate_particle_critical_diameter(mean_molecular_speed,
 
     :param diffusion_constant:
         diffusion constant of the organic gas molecule [m2/s].
-     :type diffusion_constant: float
+    :type diffusion_constant: float
+
+    :param accommodation_coefficient:
+        accommodation coefficient of the gas molecule on the particle [-].
+    :type accommodation_coefficient: float
 
     :return:
         particle critical diameter [nm].
     :rtype: float
     """
 
-    return 8 * diffusion_constant / (mean_molecular_speed * dfl['conversions'][
-        'nm2m'])
+    return 8 * diffusion_constant / (
+            accommodation_coefficient * mean_molecular_speed * dfl[
+             'conversions']['nm2m'])
 
 
 def calculate_particle_volume(particle_diameter):
@@ -137,8 +143,7 @@ def calculate_particle_mass(particle_volume, gas_density=dfl['values'][
     :rtype: float
     """
 
-    return particle_volume * gas_density * dfl['conversions']['kg2kg/mol'] * \
-        dfl['conversions']['kg2g']
+    return particle_volume * gas_density / dfl['conversions']['g/mol2kg']
 
 
 def calculate_reduced_mass(particle_mass, molecular_mass):
@@ -162,7 +167,7 @@ def calculate_reduced_mass(particle_mass, molecular_mass):
 
 
 # TODO this is a repetition of function calculate_mean of molecular_speed.
-# TODO Find a more elegant way to make them in one single function.
+# TODO Find a more elegant way to make them in one single function (utility?).
 def calculate_center_mass_speed_1(reduced_mass, temperature=dfl[
     'values']['temperature']):
     """
@@ -181,8 +186,8 @@ def calculate_center_mass_speed_1(reduced_mass, temperature=dfl[
     :rtype: float
     """
 
-    return math.sqrt((8 * dfl['conversions'][
-        'kg2g'] * const.R * temperature) / (const.pi * reduced_mass))
+    return (8 * dfl['conversions']['kg2g'] * const.R * temperature / (
+            const.pi * reduced_mass))** 0.5
 
 
 def calculate_speed_enhancement_factor(particle_mass, molecular_mass):
@@ -202,13 +207,14 @@ def calculate_speed_enhancement_factor(particle_mass, molecular_mass):
      :rtype: float
      """
 
-    return math.sqrt((particle_mass + molecular_mass) / particle_mass)
+    return ((particle_mass + molecular_mass) / particle_mass) ** 0.5
 
 
 def calculate_center_mass_speed_2(mean_molecular_speed,
                                   speed_enhancement_factor):
     """
     Calculates the center of mass speed of the system gas+particle (alternative way) [m/s].
+
     :param mean_molecular_speed:
         mean speed of the gas molecule [m/s].
     :type mean_molecular_speed: float
@@ -246,48 +252,57 @@ def calculate_molecular_size_enhancement(particle_diameter, molecular_diameter):
             particle_diameter ** 2)
 
 
-# TODO revise formulas inside the transition regime function (bsxfun)
-def calculate_transition_regime_correction(particle_diameter,
-                                           critical_particle_diameter=dfl[
-                                               'functions'][
-                                               'transition_regime_correction']
-                                           ['dp_critic'],
-                                           accommodation_coefficient=dfl[
-                                               'functions'][
-                                               'transition_regime_correction']
-                                           ['alpha']):
+def calculate_knudsen_number(particle_diameter, particle_critical_diameter):
     """
-    calculates the transition regime correction factor based on Fuchs and
-    Sutugun.
+    calculates a modified Knudsen Number based on the critical particle
+    diameter [-].
 
     :param particle_diameter:
         diameter of the particle [nm].
     :type particle_diameter: float
 
-    :param critical_particle_diameter:
+    :param particle_critical_diameter:
         critical diameter of the particle [nm].
-    :type critical_particle_diameter: float
+    :type particle_critical_diameter: float
+
+    :return:
+        Knudsen Number [-].
+    :rtype: float
+    """
+
+    return particle_critical_diameter / particle_diameter
+
+
+def calculate_transition_regime_correction(accommodation_coefficient,
+                                           knudsen_number):
+    """
+    calculates the transition regime correction factor based on Fuchs and
+    Sutugun.
 
     :param accommodation_coefficient:
         accommodation coefficient of the gas molecule on the particle [-].
     :type accommodation_coefficient: float
+
+    :param knudsen_number:
+        knudsen number [-].
+    :type knudsen_number: float
 
     :return:
         transition regime correction from kinetic to continuum [-].
     :rtype: float
     """
 
-    # calculate the Knudsen Number:
-    km = (3 / 4) * particle_diameter / critical_particle_diameter
+    alpha = accommodation_coefficient
+    km = knudsen_number
+    up = (km + 1) * (0.75 * alpha * km + 1) / (
+            km * (0.75 * alpha * km + 1 + 0.283 * alpha) + 1)
 
-    return (1 + km) * (0.75 * accommodation_coefficient * km + 1) / (km * (
-            0.75 * accommodation_coefficient * km + 1 + 0.283 *
-            accommodation_coefficient) + 1)
+    return km / (km + 1) * up
 
 
-def calculate_full_deposition_speed(accommodation_coefficient,
-                                    molecular_size_enhancement,
-                                    transition_correction, cm_speed):
+def calculate_full_deposition_speed_1(accommodation_coefficient,
+                                      molecular_size_enhancement,
+                                      transition_correction, cm_speed):
     """
     :param accommodation_coefficient:
         accommodation coefficient of the gas molecule on the particle [-].
@@ -310,8 +325,45 @@ def calculate_full_deposition_speed(accommodation_coefficient,
         :rtype: float
     """
 
-    return accommodation_coefficient * molecular_size_enhancement * cm_speed * \
-           transition_correction
+    return accommodation_coefficient * molecular_size_enhancement * (
+            cm_speed / 4) * transition_correction
+
+
+def calculate_full_deposition_speed_2(accommodation_coefficient,
+                                      molecular_size_enhancement,
+                                      speed_enhancement_factor,
+                                      mean_molecular_speed,
+                                      transition_correction, ):
+    """
+    Calculates the full corrected deposition speed [m/s].
+
+    :param accommodation_coefficient:
+        accommodation coefficient of the gas molecule on the particle [-].
+    :type accommodation_coefficient: float
+
+    :param molecular_size_enhancement:
+        molecular size enhancement [-].
+    :type molecular_size_enhancement: float
+
+    :param speed_enhancement_factor:
+        speed enhancement factor[-].
+    :type speed_enhancement_factor: float
+
+     :param mean_molecular_speed:
+        mean molecular speed of a organic gas molecule [m/s].
+    :type mean_molecular_speed: float
+
+    :param transition_correction:
+        transition regime correction from kinetic to continuum [-].
+    :type transition_correction: float
+
+    :return:
+        full corrected deposition speed [m/s].
+        :rtype: float
+    """
+
+    return accommodation_coefficient * molecular_size_enhancement * \
+           mean_molecular_speed * speed_enhancement_factor * transition_correction / 4
 
 
 def calculate_kinetic_deposition_speed(mean_molecular_speed,
@@ -396,5 +448,117 @@ def calculate_diameter_growth_rate(full_deposition_speed, gas_density):
     :rtype: float
     """
 
-    return 2 * full_deposition_speed / gas_density * dfl['conversions'][
+    return 2 * full_deposition_speed / gas_density / dfl['conversions'][
         'sec2hr']
+
+
+def calculate_kelvin_term(particle_diameter, kelvin_diameter):
+    """
+    Calculates the Kelvin Term [-]. #TODO improve function documentation.
+
+    :param particle_diameter:
+        particle diameter [nm].
+    :type particle_diameter: float
+
+    :param kelvin_diameter:
+        Kelvin diameter [nm].
+    :type kelvin_diameter: float
+
+    :return:
+        Kelvin Term [-].
+    :rtype: float
+    """
+
+    return 10 ** (kelvin_diameter / particle_diameter)
+
+
+def calculate_evaporation_timescale(particle_diameter, kelvin_term,
+                                    full_deposition_speed,
+                                    saturation_concentration, gas_density):
+    """
+    Calculates the time for evaporation of constituent from a particle
+    at the low mass fraction limit (i.e. when the diameter does not change as
+    the constituent evaporates [hr].
+
+    :param particle_diameter:
+        particle diameter [nm].
+    :type particle_diameter: float
+
+    :param full_deposition_speed:
+        full corrected deposition speed [m/s].
+    :type full_deposition_speed: float
+
+    :param kelvin_term:
+        kelvin_term [-].
+    :type kelvin_term: float
+
+    :param: gas_density:
+        typical organic gas density [kg/m3].
+    :type gas_density: float
+
+    :param saturation_concentration:
+        saturation concentration (volatility) [ug/m3].
+    :type saturation_concentration: float
+
+    :return:
+        evaporation timescale [hr].
+    :rtype: float
+    """
+
+    return dfl['conversions']['sec2hr'] * (
+            gas_density * particle_diameter * dfl['conversions'][
+        'nm2m']) / (
+                   6 * full_deposition_speed * kelvin_term * saturation_concentration /
+                   dfl['conversions']['kg2ug'])
+
+
+def calculate_particle_surface(particle_diameter):
+    """
+    Calculates the surface area of a particle for a given diameter [nm2].
+
+    :param particle_diameter:
+        particle diameter [nm].
+    :type particle_diameter: float
+
+    :return:
+        particle surface area [nm2].
+    :rtype:float
+    """
+
+    return math.pi * particle_diameter ** 2
+
+
+# TODO remember that for coll freq the dep speed is calculated with alpha =1!
+def calculate_collision_frequency(particle_surface, full_deposition_speed,
+                                  molecular_mass,
+                                  vapour_concentration=dfl['values']['Cv']):
+    """
+    Calculates the frequency with which molecules collide with a particle [1/s].
+
+    :param particle_surface:
+        surface area of the particle [nm2].
+    :type particle_surface: float
+
+    :param full_deposition_speed:
+        full corrected deposition speed [m/s].
+    :type full_deposition_speed: float
+
+    :param molecular_mass:
+         mass of the organic gas molecule [g/mol].
+    :type molecular_mass: float
+
+    :param vapour_concentration:
+        Concentration of the species in the gas phase [ug/m3].
+    :type vapour_concentration: float
+
+    :return:
+        molecule-particle collision frequency [1/s].
+    :rtype: float
+    """
+    # TODO check conversions...
+    return particle_surface * (dfl['conversions'][
+                                   'nm2m'] ** 2) * full_deposition_speed * (
+                   vapour_concentration / dfl[
+               'conversions']['kg2ug']) / (
+                   molecular_mass * dfl['conversions'][
+               'g/mol2kg'])
