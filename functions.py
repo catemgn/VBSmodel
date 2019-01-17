@@ -1,6 +1,6 @@
 import scipy.constants as const
 import math
-from .default_parameters import dfl
+from default_parameters import dfl
 
 
 def calculate_mean_molecular_speed(molecular_mass, temperature=dfl['values'][
