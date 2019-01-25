@@ -1,7 +1,9 @@
+import numpy as np
 import scipy.constants as const
 import math
 from default_parameters import dfl
 
+RATE_TRESHOLD = -20  # Time treshold for the precursor loss rate Lprec [h].
 
 def calculate_mean_molecular_speed(molecular_mass, temperature=dfl['values'][
         'temperature']):
@@ -562,3 +564,112 @@ def calculate_collision_frequency(particle_surface, full_deposition_speed,
                'conversions']['kg2ug']) / (
                    molecular_mass * dfl['conversions'][
                'g/mol2kg'])
+
+
+def calculate_concentrations_Cs_i(concentrations_Cs_ip):
+    """
+    Calculates the suspended concentration for each species i Cs_ip [ug/m3].
+
+    :param concentrations_Cs_ip:
+        suspended concentrations for each species i and population p [ug/m3].
+    :type concentrations_Cs_ip: numpy.array (2D).
+
+    :return:
+        suspended concentrations for each species i [ug/m3].
+    :rtype: numpy.array (1D).
+    """
+    return concentrations_Cs_ip.sum(axis=0)
+
+
+def calculate_concentrations_Cs_p(concentrations_Cs_ip):
+    """
+    Calculates the suspended concentration for each population p Cs_p ug/m3].
+
+    :param concentrations_Cs_ip:
+        suspended concentrations for each species i and population p [ug/m3].
+    :type concentrations_Cs_ip: numpy.array (2D).
+
+    :return:
+        suspended concentrations for each population p [ug/m3].
+    :rtype: numpy.array (1D).
+    """
+    return concentrations_Cs_ip.sum(axis=1) #TODO need to transpose?
+
+
+def calculate_concentration_Cs_OA(concentrations_Cs_i):
+    """
+    Calculates the total suspended concentration Cs_OA [ug/m3].
+
+    :param concentrations_Cs_i:
+        suspended concentrations for each species i [ug/m3].
+    :type concentrations_Cs_i: numpy.array (1D).
+
+    :return:
+       total suspended concentration [ug/m3].
+    :rtype: float.
+    """
+    return np.sum(concentrations_Cs_i)
+
+
+def calculate_concentration_Cs_seed(concentrations_Cs_seed_p):
+    """
+    Calculates the total suspended seed concentration Cs_seed [ug/m3].
+
+    :param concentrations_Cs_seed_p:
+        suspended seed concentrations for each population p [ug/m3].
+    :type concentrations_Cs_seed_p: numpy.array (1D).
+
+    :return:
+        total suspended seed concentration [ug/m3].
+    :rtype: float.
+    """
+    return np.sum(concentrations_Cs_seed_p)
+
+
+def calculate_number_concentration_Ns(concentrations_Ns_p):
+    """
+    Calculates the total suspended number concentration Ns [ 1/m3].
+
+    :param concentrations_Ns_p:
+        suspended number concentrations for each population p [1/m3].
+    :type concentrations_Ns_p: numpy.array (1D).
+
+    :return:
+        total suspended number concentration [1/m3].
+    :rtype: float.
+    """
+    return np.sum(concentrations_Ns_p)
+
+
+#TODO BACK FROM HERE CHECK UNITS
+def set_precursor_loss_Lprec(production_time, precursor_loss_Lprec):
+    """
+    Set the loss of precursors rate Lperc [ug/(m3*min)] given the experiment
+    time.???
+    :param experiment_time:
+    :return:
+    """
+
+    if production_time > RATE_TRESHOLD:
+        precursor_loss_Lprec = 0
+
+    return precursor_loss_Lprec
+
+
+def calculate_net_vapour_productions_Pv_i(fraction_yields_yi,
+                                          precursor_loss_Lprec):
+    """
+    Calculates the net vapour production for each species i [-].
+    :param fraction_yields_yi:
+        fractions of yield for each species i [-].
+    :type fraction_yields_yi: numpy.array (1D).
+
+    :param precursor_loss_Lprec:
+        precursor loss rate [ug/(m3*min)]
+
+    :return: net_vapour_productions_Pv_i [ug/m3].
+    :rtype: numpy.array (1D).
+    """
+
+    return precursor_loss_Lprec*fraction_yields_yi
+
