@@ -1,9 +1,10 @@
+
 """
 Defines the file processing the VBS model.
 """
 
 import schedula as sh
-import pandas as pd
+import json
 from VBSmodel import model
 
 
@@ -12,9 +13,9 @@ process = sh.BlueDispatcher(name='Processing Model')
 
 
 @sh.add_function(process, outputs=['raw_data'])
-def read_data(): #TODO change input read for different input files format.
+def read_data(input_fpath):
     """
-    Reads the excel file.
+    Reads the json file. Input data are a json dictionary.
 
     :param input_fpath:
         Input file path.
@@ -24,8 +25,9 @@ def read_data(): #TODO change input read for different input files format.
         Raw Data.
     :rtype: dict
     """
-    from files.VBSsetup import VBSsetup
-    return VBSsetup
+    with open(input_fpath, 'r') as writer:
+        raw_data = json.load(writer)
+    return raw_data
 
 
 process.add_data(
@@ -53,7 +55,7 @@ process.add_function(
 @sh.add_function(process)
 def save_outputs(outputs, output_fpath):
     """
-    Save model outputs in an Excel file.
+    Save model outputs in a json dictionary.
 
     :param outputs:
         Model outputs.
@@ -63,10 +65,8 @@ def save_outputs(outputs, output_fpath):
         Output file path.
     :type output_fpath: str
     """
-    df = pd.DataFrame(outputs)
-    with pd.ExcelWriter(output_fpath) as writer:
-        df.to_excel(writer)
-
+    with open(output_fpath, 'w') as writer:
+        json.dump(outputs, writer)
 
 if __name__ == '__main__':
     process.register().plot()   # register compiles the dispatcher.

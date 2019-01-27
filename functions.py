@@ -3,10 +3,11 @@ import scipy.constants as const
 import math
 from default_parameters import dfl
 
-RATE_TRESHOLD = -20  # Time treshold for the precursor loss rate Lprec [h].
+PRODUCTION_THRESHOLD = -20  # Time threshold for stop net SOA production [min].
+
 
 def calculate_mean_molecular_speed(molecular_mass, temperature=dfl['values'][
-        'temperature']):
+    'temperature']):
     """
     Calculates the mean molecular speed of a organic gas molecule [m/s].(It is
     related to the collision speed between gas molecule and aerosol particle).
@@ -107,7 +108,7 @@ def calculate_particle_critical_diameter(mean_molecular_speed,
 
     return 8 * diffusion_constant / (
             accommodation_coefficient * mean_molecular_speed * dfl[
-             'conversions']['nm2m'])
+        'conversions']['nm2m'])
 
 
 def calculate_particle_volume(particle_diameter):
@@ -189,7 +190,7 @@ def calculate_center_mass_speed_1(reduced_mass, temperature=dfl[
     """
 
     return (8 * dfl['conversions']['kg2g'] * const.R * temperature / (
-            const.pi * reduced_mass))** 0.5
+            const.pi * reduced_mass)) ** 0.5
 
 
 def calculate_speed_enhancement_factor(particle_mass, molecular_mass):
@@ -531,9 +532,11 @@ def calculate_particle_surface(particle_diameter):
 
 
 # TODO remember that for coll freq the dep speed is calculated with alpha =1!
-def calculate_collision_frequency(particle_surface, full_deposition_speed,
-                                  molecular_mass,
-                                  vapour_concentration=dfl['values']['Cv']):
+def calculate_collision_frequency_on_particles(particle_surface,
+                                               full_deposition_speed,
+                                               molecular_mass,
+                                               vapour_concentration=
+                                               dfl['values']['Cv']):
     """
     Calculates the frequency with which molecules collide with a particle [1/s].
 
@@ -578,7 +581,7 @@ def calculate_concentrations_Cs_i(concentrations_Cs_ip):
         suspended concentrations for each species i [ug/m3].
     :rtype: numpy.array (1D).
     """
-    return concentrations_Cs_ip.sum(axis=0)
+    return concentrations_Cs_ip.sum(axis=0)  # sum over columns.
 
 
 def calculate_concentrations_Cs_p(concentrations_Cs_ip):
@@ -593,7 +596,7 @@ def calculate_concentrations_Cs_p(concentrations_Cs_ip):
         suspended concentrations for each population p [ug/m3].
     :rtype: numpy.array (1D).
     """
-    return concentrations_Cs_ip.sum(axis=1) #TODO need to transpose?
+    return concentrations_Cs_ip.sum(axis=1)  # TODO need to transpose?
 
 
 def calculate_concentration_Cs_OA(concentrations_Cs_i):
@@ -626,31 +629,40 @@ def calculate_concentration_Cs_seed(concentrations_Cs_seed_p):
     return np.sum(concentrations_Cs_seed_p)
 
 
-def calculate_number_concentration_Ns(concentrations_Ns_p):
+def calculate_number_concentration_Ns(number_concentrations_Ns_p):
     """
     Calculates the total suspended number concentration Ns [ 1/m3].
 
-    :param concentrations_Ns_p:
+    :param number_concentrations_Ns_p:
         suspended number concentrations for each population p [1/m3].
-    :type concentrations_Ns_p: numpy.array (1D).
+    :type number_concentrations_Ns_p: numpy.array (1D).
 
     :return:
         total suspended number concentration [1/m3].
     :rtype: float.
     """
-    return np.sum(concentrations_Ns_p)
+    return np.sum(number_concentrations_Ns_p)
 
 
-#TODO BACK FROM HERE CHECK UNITS
 def set_precursor_loss_Lprec(production_time, precursor_loss_Lprec):
     """
-    Set the loss of precursors rate Lperc [ug/(m3*min)] given the experiment
-    time.???
-    :param experiment_time:
-    :return:
+    Stops the constant production of SOA given a time threshold.
+    (NB: the SOA production is linked to the precursor chemical loss).
+
+    :param production_time:
+        interval of constant SOA production [min].
+    :type production_time: numpy.array (1D).
+
+     :param precursor_loss_Lprec:
+        precursor loss rate  [ug/(m3*min)].
+    :type precursor_loss_Lprec: float.
+
+    :return: precursor loss rate [ug/(m3*min)].
+    :rtype: float.
     """
 
-    if production_time > RATE_TRESHOLD:
+    if production_time > PRODUCTION_THRESHOLD:  # TODO CHECK IF CORRECT WHEN
+        # TEST
         precursor_loss_Lprec = 0
 
     return precursor_loss_Lprec
@@ -665,11 +677,227 @@ def calculate_net_vapour_productions_Pv_i(fraction_yields_yi,
     :type fraction_yields_yi: numpy.array (1D).
 
     :param precursor_loss_Lprec:
-        precursor loss rate [ug/(m3*min)]
+        precursor loss rate [ug/(m3*min)].
 
     :return: net_vapour_productions_Pv_i [ug/m3].
     :rtype: numpy.array (1D).
     """
 
-    return precursor_loss_Lprec*fraction_yields_yi
+    return precursor_loss_Lprec * fraction_yields_yi
+
+
+def calculate_activities_as_ip(concentrations_Cs_ip, concentrations_Cs_p):
+    """
+    Calculates the activity of each species i and population p [-].
+
+    :param concentrations_Cs_ip:
+        suspended concentrations for each species i and population p [ug/m3].
+    :type concentrations_Cs_ip: numpy.array (2D).
+
+    :param concentrations_Cs_p:
+        suspended concentrations for each population p [ug/m3].
+    :type concentrations_Cs_p: numpy.array (1D).
+
+    :return: activity of each species i and population p [-].
+    :rtype: numpy.array (2D).
+    """
+
+    return concentrations_Cs_ip / concentrations_Cs_p[:,
+                                  None].T  # TODO CHECK AND CHECK FOR ZERO DIVISION
+
+
+def calculate_condensation_driving_forces_Fvs_ip(activities_as_ip,
+                                                 saturation_concentrations_Co_i,
+                                                 concentrations_Cv_i):
+    """
+    Calculates the condensation driving force from vapour (v) to suspended (s)
+    phases for each species i and population p [ug/m3].
+
+    :param: saturation_concentrations_Co_i:
+           saturation concentration for each species i (VBS set) [ug/m3].
+    :type: saturation_concentrations_Co_i: numpy.array (1D).
+
+    :param: activities_as_ip:
+        activity of each species i and population p [-].
+    :type activities_as_ip: numpy.array (2D).
+
+    :param: concentrations_Cv_i:
+        vapour concentrations for each species i[ug/m3].
+    :type: numpy.array (1D).
+
+    :return: condensation_driving_forces for each species i and population p
+    [ug/m3].
+    :rtype: numpy.array (2D).
+    """
+
+    return concentrations_Cv_i - activities_as_ip.dot(
+        saturation_concentrations_Co_i)
+
+
+def calculate_particle_volumes_vs_p(number_concentrations_Ns_p,
+                                    seed_density, organics_density,
+                                    concentrations_Cs_p,
+                                    concentrations_Cs_seed_p):
+    """
+    Calculates the particle volume for each population p [m3].
+
+    :param number_concentrations_Ns_p:
+        suspended number concentrations for each population p [1/m3].
+    :type number_concentrations_Ns_p: numpy.array (1D).
+
+    :param seed_density:
+        density of seed particles [ug/m3].
+    :type seed_density: float.
+
+     :param organics_density:
+        density of organic particles [ug/m3].
+    :type organics_density: float.
+
+    :param concentrations_Cs_p:
+        suspended concentrations for each population p [ug/m3].
+    :type concentrations_Cs_p: numpy.array (1D).
+
+    :param concentrations_Cs_seed_p:
+        suspended seed concentrations for each population p [ug/m3].
+    :type concentrations_Cs_seed_p: numpy.array (1D).
+
+    :return: particle volume for each population p [m3].
+    :rtype: numpy.array (1D).
+    """
+
+    return [concentrations_Cs_seed_p / seed_density
+            + concentrations_Cs_p / organics_density] / number_concentrations_Ns_p
+
+
+def calculate_particle_diameters_ds_p(particle_volumes_vs_p):
+    """
+    Calculates the particle diameter for each population p [m].
+
+    :param particle_volumes_vs_p:
+        particle volume for each population p [m3].
+    :type particle_volumes_vs_p: numpy.array (1D).
+
+    :return: particle diameter for each population p [m3].
+    :rtype: numpy.array (1D)
+    """
+
+    return np.cbrt((6 / const.pi * particle_volumes_vs_p))
+
+
+
+def calculate_collision_frequencies_nus_ip(full_deposition_speed,
+                                           particle_diameters_ds_p,
+                                           number_concentrations_Ns_p):
+    """
+    Calculates the collision frequency of vapour i over particle in
+    population p [1/min].
+
+    :param full_deposition_speed:
+        full corrected deposition speed [m/s].
+    :type full_deposition_speed: numpy.array (1D).
+
+    :param particle_diameters_ds_p:
+        particle diameter for each population p [m3].
+    :type particle_diameters_ds_p: numpy.array (1D).
+
+     :param number_concentrations_Ns_p:
+        suspended number concentrations for each population p [1/m3].
+    :type number_concentrations_Ns_p: numpy.array (1D).
+
+    :return: collision frequency between vapour i and particle population p.
+    :rtype: numpy.array (2D).
+    """
+
+    return const.pi * np.square(
+        particle_diameters_ds_p) * number_concentrations_Ns_p \
+           * full_deposition_speed  # CHECK UNITS
+
+
+
+def calculate_condensation_sinks_ks_ip(collision_frequency_nus_ip,
+                                       effective_accommodation_coefficients_ai=1):
+    """
+    Calculates the condensation sinks for vapour of species i on
+    suspended population p [1/min].
+
+    :param collision_frequency_nus_ip:
+        collision frequency between vapour i and particle population p [1/min].
+    :type collision_frequency_nus_ip: numpy.array (1D).
+
+    :param: effective_accommodation_coefficient_ai:
+       effective accommodation coefficient [-].
+    :type effective_accommodation_coefficients_ai: ARRAY OR FLOAT???
+
+    :return: condensation sinks for vapour of species i on population p [1/min].
+    :rtype: numpy.array (2D).
+    """
+
+    return effective_accommodation_coefficients_ai * collision_frequency_nus_ip
+
+
+def calculate_condensation_fluxes_phi_vs_ip(condensation_sinks_ks_ip,
+                                            condensation_driving_forces_Fvs_ip):
+    """
+    Calculates the condensations fluxes from vapour (v) to suspended (s)
+    phase for each species i and population p [ug/m3].
+
+    :param: condensation_sinks_ks_ip:
+        condensation sinks for vapour of species i on population p [1/min].
+    :type: numpy.array (1D).
+
+    :param condensation_driving_forces_Fvs_ip:
+        condensation driving force for each species i and population p [ug/m3].
+    :type: numpy.array (2D).
+
+    :return: condensation fluxes for each species i and population p [ug/m3].
+    :rtype: numpy.array (2D).
+    """
+
+    return condensation_sinks_ks_ip * condensation_driving_forces_Fvs_ip
+
+
+def calculate_vapours_change_rates_dCv_i(condensation_fluxes_phi_vs_ip,
+                                 net_vapour_productions_Pv_i):
+    """
+    Calculates the vapour concentration change rate for each species i
+    dCv_i/dt [ug/(m3*min)].
+
+    :param condensation_fluxes_phi_vs_ip:
+        fluxes for each species i and population p [ug/m3].
+    :type: numpy.array (2D).
+
+    :param net_vapour_productions_Pv_i:
+        net vapour production for each species i [ug/(m3*min)].
+    :type: numpy.array (1D).
+
+    :return: vapour concentration change rate for each species i.
+    :rtype: numpy.array (1D).
+    """
+
+    return net_vapour_productions_Pv_i - condensation_fluxes_phi_vs_ip.sum(
+        axis=0)
+
+
+def calculate_suspended_particles_change_rates_dCs_ip(
+        condensation_fluxes_phi_vs_ip,
+                                 net_particle_productions_Ps_ip):
+    """
+    Calculates the suspended concentration change rate for each species i and population p
+    dCs_ip/dt [ug/(m3*min)].
+
+    :param condensation_fluxes_phi_vs_ip:
+        fluxes for each species i and population p [ug/m3].
+    :type: numpy.array (2D).
+
+    :param net_particle_productions_Ps_ip:
+        net suspended particle production for each species i and population p [
+        ug/m3].
+    :type: numpy.array (2D).
+
+    :return: suspended particle concentration change rate for each species i
+    and population p.
+    :rtype: numpy.array (2D).
+    """
+
+    return net_particle_productions_Ps_ip - condensation_fluxes_phi_vs_ip
 

@@ -15,7 +15,8 @@ inputs = {'particle diameter': particle_diameter,
           'molecular diameter': 0.8,
           'accommodation coefficient': 1,
           'temperature': 298,
-          'pressure': 101326}
+          'pressure': 101326,
+          'kelvin diameter': 4.5}
 
 # PLOT FOR alpha=1
 sol_dsp = model().dispatch(inputs=inputs)  # Calculating model solution for
@@ -78,3 +79,4 @@ plt.text(2000, 25, 'Continuum', fontsize=11)
 plt.legend(loc='best')
 plt.show()
 
+sol_dsp.plot()

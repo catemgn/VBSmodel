@@ -35,10 +35,8 @@ VBSsetup = {
     'diamK10org': 4.5,  # kelvin diameter for organics [nm].
 """
 
-VBSsetup = {
-    #specific figure inputs:
-
-    #Figure3
+{
+    #specific figure inputs #Figure3
 
     'particle diameter': np.logspace(-0.5, 4.5, num=501, base=10,
                                       endpoint=True),

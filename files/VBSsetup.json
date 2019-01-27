@@ -1,0 +1,10 @@
+{
+   "particle diameter": 10,  //comment prova
+   "molecular mass": 250,
+   "molecular density": 1400,
+   "molecular diameter": 0.8,
+   "temperature": 298,
+   "pressure": 101326,
+   "accommodation coefficient": 1,
+   "kelvin diameter": 4.5
+}
