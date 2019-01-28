@@ -1,6 +1,6 @@
 
 """
-Defines the file processing the VBS model.
+Defines the file processing the VBS Dynamics model.
 """
 
 import schedula as sh
@@ -44,7 +44,7 @@ process.add_function(
 )
 
 process.add_function(
-    function_id='execute_VBS',
+    function_id='execute VBS Dynamics',
     function=sh.SubDispatch(model()),
     inputs=['data'],
     outputs=['outputs'],
