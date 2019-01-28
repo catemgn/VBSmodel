@@ -1,6 +1,6 @@
 """"
 Plot figure 10 paper.
-Direct use of the VBS model (no process).
+Direct use of the VBSDynamics model (no process).
 """
 
 import numpy as np
@@ -14,17 +14,17 @@ def plot_collision_frequency(inputs, cv):
     function of particle diameter for given vapor concentrations (Cv) [ug/m3].
     """
     inputs['vapour concentration'] = cv
-    sol_dsp = model().dispatch(inputs=inputs, outputs=['collision frequency'])
-    mu = sol_dsp['collision frequency']
+    sol_dsp = model().dispatch(inputs=inputs)
+    mu = sol_dsp.get_node('calculate deposition speeds', 'collision frequency '
+                                                        'on particles')[0]
+    return plt.loglog(inputs['particle diameters ds_p'], mu, '--', c='k')
 
-    return plt.loglog(inputs['particle diameter'], mu, '--', c='k')
 
-
-inputs = {'particle diameter': np.logspace(-0.5, 4.5, num=501, base=10,
+inputs = {'particle diameters ds_p': np.logspace(-0.5, 4.5, num=501, base=10,
                                            endpoint=True),
-          'molecular mass': 250,
-          'gas density': 1400,
-          'molecular diameter': 0.9,
+          'vapour masses m_i': 250,
+          'organics density rho_org': 1400,
+          'vapour effective diameters d_i': 0.9,
           'accommodation coefficient': 1,
           'temperature': 298,
           'pressure': 101326
