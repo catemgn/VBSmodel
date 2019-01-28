@@ -171,7 +171,7 @@ def calculate_reduced_mass(particle_mass, molecular_mass):
 
 # TODO this is a repetition of function calculate_mean of molecular_speed.
 # TODO Find a more elegant way to make them in one single function (utility?).
-def calculate_center_mass_speed_1(reduced_mass, temperature=dfl[
+def calculate_center_mass_speed(reduced_mass, temperature=dfl[
     'values']['temperature']):
     """
     Calculates the center of mass speed of the binary system gas+ particle[m/s].
@@ -191,46 +191,6 @@ def calculate_center_mass_speed_1(reduced_mass, temperature=dfl[
 
     return (8 * dfl['conversions']['kg2g'] * const.R * temperature / (
             const.pi * reduced_mass)) ** 0.5
-
-
-def calculate_speed_enhancement_factor(particle_mass, molecular_mass):
-    """
-     Calculates the speed enhancement factor of the collision [-].
-
-     :param particle_mass:
-          mass of the particle [g/mol].
-     :type particle_mass: float.
-
-     :param molecular_mass:
-         mass of the organic gas molecule [g/mol].
-     :type molecular_mass: float
-
-     :return:
-         speed enhancement factor [-].
-     :rtype: float
-     """
-
-    return ((particle_mass + molecular_mass) / particle_mass) ** 0.5
-
-
-def calculate_center_mass_speed_2(mean_molecular_speed,
-                                  speed_enhancement_factor):
-    """
-    Calculates the center of mass speed of the system gas+particle (alternative way) [m/s].
-
-    :param mean_molecular_speed:
-        mean speed of the gas molecule [m/s].
-    :type mean_molecular_speed: float
-
-    :param speed_enhancement_factor:
-        speed enhancement factor of the collision [-].
-    :type speed_enhancement_factor: float
-
-    :return:
-        center of mass speed of the system gas+particle [m/s].
-    :rtype:
-    """
-    return mean_molecular_speed * speed_enhancement_factor
 
 
 def calculate_molecular_size_enhancement(particle_diameter, molecular_diameter):
@@ -303,7 +263,7 @@ def calculate_transition_regime_correction(accommodation_coefficient,
     return km / (km + 1) * up
 
 
-def calculate_full_deposition_speed_1(accommodation_coefficient,
+def calculate_full_deposition_speed(accommodation_coefficient,
                                       molecular_size_enhancement,
                                       transition_correction, cm_speed):
     """
@@ -330,43 +290,6 @@ def calculate_full_deposition_speed_1(accommodation_coefficient,
 
     return accommodation_coefficient * molecular_size_enhancement * (
             cm_speed / 4) * transition_correction
-
-
-def calculate_full_deposition_speed_2(accommodation_coefficient,
-                                      molecular_size_enhancement,
-                                      speed_enhancement_factor,
-                                      mean_molecular_speed,
-                                      transition_correction, ):
-    """
-    Calculates the full corrected deposition speed [m/s].
-
-    :param accommodation_coefficient:
-        accommodation coefficient of the gas molecule on the particle [-].
-    :type accommodation_coefficient: float
-
-    :param molecular_size_enhancement:
-        molecular size enhancement [-].
-    :type molecular_size_enhancement: float
-
-    :param speed_enhancement_factor:
-        speed enhancement factor[-].
-    :type speed_enhancement_factor: float
-
-     :param mean_molecular_speed:
-        mean molecular speed of a organic gas molecule [m/s].
-    :type mean_molecular_speed: float
-
-    :param transition_correction:
-        transition regime correction from kinetic to continuum [-].
-    :type transition_correction: float
-
-    :return:
-        full corrected deposition speed [m/s].
-        :rtype: float
-    """
-
-    return accommodation_coefficient * molecular_size_enhancement * \
-           mean_molecular_speed * speed_enhancement_factor * transition_correction / 4
 
 
 def calculate_kinetic_deposition_speed(mean_molecular_speed,
