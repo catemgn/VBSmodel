@@ -11,9 +11,9 @@ from VBSmodel import model
 particle_diameter = np.logspace(-0.5, 4.5, num=501, base=10, endpoint=True)
 
 inputs = {'particle diameters ds_p': particle_diameter,
-          'vapour masses m_i': 250,
+          'vapour masses m_i': np.array([250]),
           'organics density rho_org': 1400,
-          'vapour effective diameters d_i': 0.8,
+          'vapour effective diameters d_i': np.array([0.8]),
           'accommodation coefficient': 1,
           'temperature': 298,
           'pressure': 101326,
@@ -26,10 +26,12 @@ con_sp = 'continuum deposition speed'
 
 
 # PLOT FOR alpha=1
-sol_dsp = model().dispatch(inputs=inputs) # get the model solution
+sol_dsp = model().dispatch(inputs=inputs)  # get the model solution
 # given inputs.
-plt.loglog(particle_diameter, sol_dsp[dep_sp], '-', c='g', linewidth=3,
+plt.loglog(particle_diameter, sol_dsp[dep_sp].flatten(), '-', c='g',
+           linewidth=3,
            label='Organics alpha=1')
+
 # Plot asymptotes
 selector = (particle_diameter < sol_dsp.get_node('calculate deposition '
                                                  'speeds', crit_d)[0])
@@ -39,15 +41,16 @@ v_kinetic = np.full(len(dp), sol_dsp.get_node(
 plt.loglog(dp, v_kinetic, '--', c='g')
 dp = particle_diameter[~selector]
 v_continuum = sol_dsp.get_node(
-    'calculate deposition speeds', con_sp)[0][~selector]
+    'calculate deposition speeds', con_sp)[0].flatten()[~selector]
 plt.loglog(dp, v_continuum, '--', c='g')
 
 
 # PLOT FOR alpha=0.1
 inputs['accommodation coefficient'] = 0.1
 sol_dsp = model().dispatch(inputs=inputs)
-plt.loglog(particle_diameter, sol_dsp['full deposition speeds'], '-.',
+plt.loglog(particle_diameter, sol_dsp[dep_sp].flatten(), '-.',
            c='g', linewidth=2, label='Organics alpha=0.1')
+
 # Plot asymptotes
 selector = (particle_diameter < sol_dsp.get_node('calculate deposition '
                                                  'speeds', crit_d)[0])
@@ -56,19 +59,20 @@ v_kinetic = np.full(len(dp),
                     sol_dsp.get_node('calculate deposition speeds', kin_sp)[0])
 plt.loglog(dp, v_kinetic, '-.', c='g')
 dp = particle_diameter[~selector]
-v_continuum = sol_dsp.get_node('calculate deposition speeds', con_sp)[0][
-    ~selector]
+v_continuum = sol_dsp.get_node('calculate deposition speeds', con_sp)[
+    0].flatten()[~selector]
 plt.loglog(dp, v_continuum, '-.', c='g')
 
 
 # PLOT OFR NITRIC ACID
 inputs['accommodation coefficient'] = 1
-inputs['vapour masses m_i'] = 63
+inputs['vapour masses m_i'] = np.array([63])
 inputs['organics density rho_org'] = 1700
-inputs['vapour effective diameters d_i'] = 0.4
+inputs['vapour effective diameters d_i'] = np.array([0.4])
 sol_dsp = model().dispatch(inputs=inputs)
-plt.loglog(particle_diameter, sol_dsp['full deposition speeds'], '-', c='b',
+plt.loglog(particle_diameter, sol_dsp[dep_sp].flatten(), '-', c='b',
            linewidth=2, label='Nitric acid')
+
 # Plot asymptotes
 selector = (particle_diameter < sol_dsp.get_node('calculate deposition '
                                                  'speeds', crit_d)[0])
@@ -77,8 +81,8 @@ v_kinetic = np.full(len(dp),
                     sol_dsp.get_node('calculate deposition speeds', kin_sp)[0])
 plt.loglog(dp, v_kinetic, '--', c='b')
 dp = particle_diameter[~selector]
-v_continuum = sol_dsp.get_node('calculate deposition speeds', con_sp)[0][
-    ~selector]
+v_continuum = sol_dsp.get_node('calculate deposition speeds', con_sp)[
+    0].flatten()[~selector]
 plt.loglog(dp, v_continuum, '--', c='b')
 
 # Setting figure parameters

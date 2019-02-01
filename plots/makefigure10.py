@@ -14,20 +14,21 @@ def plot_evaporation_timescale(inputs, co):
     saturation concentration co [ug/m3] from particles of various sizes.
     """
 
-    inputs['saturation concentrations Co_i'] = co
+    inputs['saturation concentrations Co_i'] = np.array([co])
 
     sol_dsp = model().dispatch(inputs=inputs)
     tau = sol_dsp.get_node('calculate deposition speeds', 'evaporation '
-                                                          'timescale')[0]
+         'timescale')[0].flatten()
 
     return plt.loglog(inputs['particle diameters ds_p'], tau, '--', c='k')
 
 
 inputs = {'particle diameters ds_p': np.logspace(-0.5, 4.5, num=501, base=10,
                                            endpoint=True),
-          'vapour masses m_i': 350,
+
+          'vapour masses m_i': np.array([350]),
           'organics density rho_org': 1400,
-          'vapour effective diameters d_i': 0.8,
+          'vapour effective diameters d_i': np.array([0.8]),
           'accommodation coefficient': 1,
           'temperature': 300,
           'pressure': 101325,

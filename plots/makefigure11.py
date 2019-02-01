@@ -13,18 +13,19 @@ def plot_collision_frequency(inputs, cv):
     Plot the frequency with at which molecules collide with particles as a
     function of particle diameter for given vapor concentrations (Cv) [ug/m3].
     """
-    inputs['vapour concentration'] = cv
+    inputs['concentrations Cv_i'] = np.array([cv])
     sol_dsp = model().dispatch(inputs=inputs)
     mu = sol_dsp.get_node('calculate deposition speeds', 'collision frequency '
-                                                        'on particles')[0]
+        'on particles')[0].flatten()
     return plt.loglog(inputs['particle diameters ds_p'], mu, '--', c='k')
 
 
 inputs = {'particle diameters ds_p': np.logspace(-0.5, 4.5, num=501, base=10,
                                            endpoint=True),
-          'vapour masses m_i': 250,
+
+          'vapour masses m_i': np.array([250]),
           'organics density rho_org': 1400,
-          'vapour effective diameters d_i': 0.9,
+          'vapour effective diameters d_i': np.array([0.9]),
           'accommodation coefficient': 1,
           'temperature': 298,
           'pressure': 101326
