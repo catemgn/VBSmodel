@@ -1,9 +1,19 @@
 import numpy as np
-import scipy.constants as const
+import scipy.constants as scicon
 import math
 from default_parameters import dfl
+import utils as utl
 
 PRODUCTION_THRESHOLD = -20  # Time threshold for stop net SOA production [min].
+NMtoM = 1e-9
+KGM3toUGM3 = 1e9
+KGtoUG = 1e9
+CM3toM3 = 1e6
+SECtoMIN = 60
+HOURtoSEC = 3600
+GtoKG = 1e-3
+AMUtoKG = 1.660538921e-27
+UGtoAMU = 1e-9 / AMUtoKG
 
 
 def calculate_mean_molecular_speed(molecular_mass, temperature=dfl['values'][
@@ -26,7 +36,7 @@ def calculate_mean_molecular_speed(molecular_mass, temperature=dfl['values'][
     """
 
     return ((8 * dfl['conversions'][
-        'kg2g'] * const.R * temperature) / (const.pi * molecular_mass)) ** 0.5
+        'kg2g'] * scicon.R * temperature) / (scicon.pi * molecular_mass)) ** 0.5
 
 
 def calculate_molecular_diffusion_constant(molecular_mass=dfl['values'][
@@ -76,9 +86,9 @@ def calculate_molecular_diffusion_constant(molecular_mass=dfl['values'][
     m_i = molecular_mass
     rho_i = gas_density
 
-    return d_ref * (temperature / t_ref) ** m * (pressure / p_ref) * math.sqrt(
-        m_ref * (m_i + m_air) / (m_i * (
-                m_ref + m_air))) * ((m_ref / rho_ref + m_air / rho_air) / (
+    return d_ref * (temperature / t_ref) ** m * (pressure / p_ref) * ((
+            m_ref * (m_i + m_air) / (m_i * (
+            m_ref + m_air)) )** 0.5) * ((m_ref / rho_ref + m_air / rho_air) / (
             m_i / rho_i + m_air / rho_air)) ** delta
 
 
@@ -166,7 +176,11 @@ def calculate_reduced_mass(particle_mass, molecular_mass):
     :rtype: float
     """
 
-    return particle_mass * molecular_mass / (particle_mass + molecular_mass)
+    mi_dot_mp = utl.__matrix_multiply(molecular_mass, particle_mass)
+    a = utl.__extend_to_matrix(molecular_mass, len(particle_mass))
+    mi_plus_mp = utl.__column_by_vector(a, particle_mass, '+')
+
+    return mi_dot_mp / mi_plus_mp
 
 
 # TODO this is a repetition of function calculate_mean of molecular_speed.
@@ -189,8 +203,8 @@ def calculate_center_mass_speed(reduced_mass, temperature=dfl[
     :rtype: float
     """
 
-    return (8 * dfl['conversions']['kg2g'] * const.R * temperature / (
-            const.pi * reduced_mass)) ** 0.5
+    return (8 * dfl['conversions']['kg2g'] * scicon.R * temperature / (
+            scicon.pi * reduced_mass)) ** 0.5
 
 
 def calculate_molecular_size_enhancement(particle_diameter, molecular_diameter):
@@ -200,19 +214,21 @@ def calculate_molecular_size_enhancement(particle_diameter, molecular_diameter):
 
     :param particle_diameter:
         diameter of the particle [nm].
-    :type particle_diameter: float
+    :type particle_diameter: float | np.array
 
     :param molecular_diameter:
         diameter of the gas molecule [nm].
-    :type molecular_diameter: float
+    :type molecular_diameter: float | np.array
 
     :return:
         molecular size enhancement [-].
-    :rtype: float
+    :rtype: float or np.array
     """
 
-    return (particle_diameter + molecular_diameter) ** 2 / (
-            particle_diameter ** 2)
+    a = utl.__extend_to_matrix(molecular_diameter, len(particle_diameter))
+    di_plus_dp = utl.__column_by_vector(a, particle_diameter, '+')
+
+    return utl.__column_by_vector(di_plus_dp**2, particle_diameter**2, '/')
 
 
 def calculate_knudsen_number(particle_diameter, particle_critical_diameter):
@@ -233,7 +249,12 @@ def calculate_knudsen_number(particle_diameter, particle_critical_diameter):
     :rtype: float
     """
 
-    return particle_critical_diameter / particle_diameter
+    a = utl.__extend_to_matrix(particle_critical_diameter,
+                               len(particle_diameter))
+
+    return utl.__column_by_vector(a, particle_diameter, '/')
+
+
 
 
 def calculate_transition_regime_correction(accommodation_coefficient,
@@ -264,8 +285,8 @@ def calculate_transition_regime_correction(accommodation_coefficient,
 
 
 def calculate_full_deposition_speed(accommodation_coefficient,
-                                      molecular_size_enhancement,
-                                      transition_correction, cm_speed):
+                                    molecular_size_enhancement,
+                                    transition_correction, cm_speed):
     """
     :param accommodation_coefficient:
         accommodation coefficient of the gas molecule on the particle [-].
@@ -329,9 +350,10 @@ def calculate_continuum_deposition_speed(particle_diameter,
      continuum deposition speed [m/s].
     :rtype: float
     """
+    const = 2/NMtoM
+    a = utl.__extend_to_matrix(diffusion_constant, len(particle_diameter))
 
-    return 2 * diffusion_constant / (
-            particle_diameter * dfl['conversions']['nm2m'])
+    return const * utl.__column_by_vector(a, particle_diameter, '/')
 
 
 def calculate_deposition_speed_normalised_ratio(full_deposition_speed,
@@ -353,7 +375,8 @@ def calculate_deposition_speed_normalised_ratio(full_deposition_speed,
     :rtype: float
     """
 
-    return full_deposition_speed / kinetic_deposition_speed
+    return utl.__row_by_vector(full_deposition_speed,
+                               kinetic_deposition_speed, '/')
 
 
 def calculate_diameter_growth_rate(full_deposition_speed, gas_density):
@@ -395,7 +418,7 @@ def calculate_kelvin_term(particle_diameter, kelvin_diameter):
     :rtype: float
     """
 
-    return 10 ** (kelvin_diameter / particle_diameter)
+    return 10 ** (kelvin_diameter * np.reciprocal(particle_diameter))
 
 
 def calculate_evaporation_timescale(particle_diameter, kelvin_term,
@@ -429,13 +452,14 @@ def calculate_evaporation_timescale(particle_diameter, kelvin_term,
     :return:
         evaporation timescale [hr].
     :rtype: float
-    """
 
-    return dfl['conversions']['sec2hr'] * (
-            gas_density * particle_diameter * dfl['conversions'][
-        'nm2m']) / (
-                   6 * full_deposition_speed * kelvin_term * saturation_concentration /
-                   dfl['conversions']['kg2ug'])
+    """
+    conv_factor = 1 / HOURtoSEC * NMtoM * KGtoUG
+    num = (gas_density * particle_diameter)/6
+    a = utl.__matrix_multiply(saturation_concentration, kelvin_term)
+    den = np.multiply(full_deposition_speed, a)
+
+    return conv_factor*num/den
 
 
 def calculate_particle_surface(particle_diameter):
@@ -483,13 +507,14 @@ def calculate_collision_frequency_on_particles(particle_surface,
         molecule-particle collision frequency [1/s].
     :rtype: float
     """
+    conv_factor = NMtoM ** 2 / KGtoUG / AMUtoKG
     # TODO check conversions...
-    return particle_surface * (dfl['conversions'][
-                                   'nm2m'] ** 2) * full_deposition_speed * (
-                   vapour_concentration / dfl[
-               'conversions']['kg2ug']) / (
-                   molecular_mass * dfl['conversions'][
-               'g/mol2kg'])
+    # return conv_factor * particle_surface * full_deposition_speed * (
+    # vapour_concentration / molecular_mass)
+
+    a = full_deposition_speed * particle_surface[:, None].T
+    b = vapour_concentration / molecular_mass
+    return conv_factor * a * b[:, None]
 
 
 def calculate_concentrations_Cs_i(concentrations_Cs_ip):
@@ -519,7 +544,7 @@ def calculate_concentrations_Cs_p(concentrations_Cs_ip):
         suspended concentrations for each population p [ug/m3].
     :rtype: numpy.array (1D).
     """
-    return concentrations_Cs_ip.sum(axis=1)  # TODO need to transpose?
+    return concentrations_Cs_ip.sum(axis=0)
 
 
 def calculate_concentration_Cs_OA(concentrations_Cs_i):
@@ -535,6 +560,33 @@ def calculate_concentration_Cs_OA(concentrations_Cs_i):
     :rtype: float.
     """
     return np.sum(concentrations_Cs_i)
+
+
+def calculate_concentrations_Cs_seed_p(seed_density_rho_seed_p,
+                                       seed_diameters_d_seed_p,
+                                       number_concetrations_Ns_p):
+    """
+    Calculates the seed concentration for each population p [ug/m3].
+
+    :param seed_density_rho_seed_p:
+        seed density for each population p [kg/m3].
+    :type seed_density_rho_seed_p: numpy.array (1D).
+
+    :param number_concentrations_Ns_p:
+        suspended number concentrations for each population p [1/m3].
+    :type number_concentrations_Ns_p: numpy.array (1D).
+
+    :param seed_diameters_d_seed_p:
+        seed diameter for each population p.
+    :type seed_diameters_d_seed_p: numpy.array (1D).
+
+    :return: seed concentrations C_seed_p [ug/m3].
+    :rtype: numpy.array (1D).
+    """
+
+    return scicon.pi / 6 * (seed_diameters_d_seed_p * NMtoM) ** 3 * (
+            seed_density_rho_seed_p * KGM3toUGM3) * (
+                   number_concetrations_Ns_p * CM3toM3)
 
 
 def calculate_concentration_Cs_seed(concentrations_Cs_seed_p):
@@ -624,9 +676,10 @@ def calculate_activities_as_ip(concentrations_Cs_ip, concentrations_Cs_p):
     :return: activity of each species i and population p [-].
     :rtype: numpy.array (2D).
     """
+    is_concentration = concentrations_Cs_p != 0  # check if there are 0 values.
 
-    return concentrations_Cs_ip / concentrations_Cs_p[:,
-                                  None].T  # TODO CHECK AND CHECK FOR ZERO DIVISION
+    return is_concentration * concentrations_Cs_ip / (
+        (concentrations_Cs_p[:, None] + 1e-20).T)
 
 
 def calculate_condensation_driving_forces_Fvs_ip(activities_as_ip,
@@ -653,12 +706,12 @@ def calculate_condensation_driving_forces_Fvs_ip(activities_as_ip,
     :rtype: numpy.array (2D).
     """
 
-    return concentrations_Cv_i - activities_as_ip.dot(
-        saturation_concentrations_Co_i)
+    return concentrations_Cv_i[:, None] - activities_as_ip * \
+           saturation_concentrations_Co_i[:, None]
 
 
 def calculate_particle_volumes_vs_p(number_concentrations_Ns_p,
-                                    seed_density, organics_density,
+                                    seed_density_rho_seed_p, organics_density,
                                     concentrations_Cs_p,
                                     concentrations_Cs_seed_p):
     """
@@ -668,9 +721,9 @@ def calculate_particle_volumes_vs_p(number_concentrations_Ns_p,
         suspended number concentrations for each population p [1/m3].
     :type number_concentrations_Ns_p: numpy.array (1D).
 
-    :param seed_density:
-        density of seed particles [ug/m3].
-    :type seed_density: float.
+    :param seed_density_rho_seed_p:
+        density of seed particles for each population pm[ug/m3].
+    :type seed_density_rho_seed_p: np.array
 
      :param organics_density:
         density of organic particles [ug/m3].
@@ -688,8 +741,9 @@ def calculate_particle_volumes_vs_p(number_concentrations_Ns_p,
     :rtype: numpy.array (1D).
     """
 
-    return [concentrations_Cs_seed_p / seed_density
-            + concentrations_Cs_p / organics_density] / number_concentrations_Ns_p
+    return ((concentrations_Cs_seed_p / seed_density_rho_seed_p)
+            + (concentrations_Cs_p /
+               organics_density)) / number_concentrations_Ns_p
 
 
 def calculate_particle_diameters_ds_p(particle_volumes_vs_p):
@@ -704,8 +758,7 @@ def calculate_particle_diameters_ds_p(particle_volumes_vs_p):
     :rtype: numpy.array (1D)
     """
 
-    return np.cbrt((6 / const.pi * particle_volumes_vs_p))
-
+    return np.cbrt((6 / scicon.pi * particle_volumes_vs_p))
 
 
 def calculate_collision_frequencies_nus_ip(full_deposition_speed,
@@ -731,10 +784,9 @@ def calculate_collision_frequencies_nus_ip(full_deposition_speed,
     :rtype: numpy.array (2D).
     """
 
-    return const.pi * np.square(
+    return scicon.pi * np.square(
         particle_diameters_ds_p) * number_concentrations_Ns_p \
            * full_deposition_speed  # CHECK UNITS
-
 
 
 def calculate_condensation_sinks_ks_ip(collision_frequency_nus_ip,
@@ -780,7 +832,7 @@ def calculate_condensation_fluxes_phi_vs_ip(condensation_sinks_ks_ip,
 
 
 def calculate_vapours_change_rates_dCv_i(condensation_fluxes_phi_vs_ip,
-                                 net_vapour_productions_Pv_i):
+                                         net_vapour_productions_Pv_i):
     """
     Calculates the vapour concentration change rate for each species i
     dCv_i/dt [ug/(m3*min)].
@@ -798,12 +850,12 @@ def calculate_vapours_change_rates_dCv_i(condensation_fluxes_phi_vs_ip,
     """
 
     return net_vapour_productions_Pv_i - condensation_fluxes_phi_vs_ip.sum(
-        axis=0)
+        axis=1)
 
 
 def calculate_suspended_particles_change_rates_dCs_ip(
         condensation_fluxes_phi_vs_ip,
-                                 net_particle_productions_Ps_ip):
+        net_particle_productions_Ps_ip):
     """
     Calculates the suspended concentration change rate for each species i and population p
     dCs_ip/dt [ug/(m3*min)].
@@ -823,4 +875,3 @@ def calculate_suspended_particles_change_rates_dCs_ip(
     """
 
     return net_particle_productions_Ps_ip - condensation_fluxes_phi_vs_ip
-

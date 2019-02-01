@@ -137,7 +137,7 @@ def model():
         function=fun.calculate_collision_frequency_on_particles,
         inputs=['particle surface',
                 'full deposition speeds',
-                'vapour masses m_i', 'vapour concentration'],
+                'vapour masses m_i', 'concentrations Cv_i'],
         outputs=['collision frequency on particles']
     )
 
@@ -154,8 +154,7 @@ def model():
         inputs=['particle diameters ds_p', 'organics density rho_org',
                 'vapour effective diameters d_i', 'vapour masses m_i',
                 'temperature', 'saturation concentrations Co_i', 'pressure',
-                'kelvin diameter', 'accommodation coefficient', 'vapour '
-                                                                'concentration'],
+                'kelvin diameter', 'accommodation coefficient', 'concentrations Cv_i'],
         outputs=['full deposition speeds', 'collision frequency on '
                                            'particles', 'evaporation timescale']
     )
@@ -176,6 +175,13 @@ def model():
         function=fun.calculate_concentration_Cs_OA,
         inputs=['concentrations Cs_i'],
         outputs=['concentration Cs_OA']
+    )
+
+    dsp2.add_function(
+        function=fun.calculate_concentrations_Cs_seed_p,
+        inputs=['seed density rho_seed_p', 'seed diameters d_seed_p',
+                 'number concentrations Ns_p'],
+        outputs=['concentrations Cs_seed_p']
     )
 
     dsp2.add_function(
@@ -205,7 +211,7 @@ def model():
     dsp2.add_function(
         function=fun.calculate_particle_volumes_vs_p,
         inputs=['number concentrations Ns_p',
-                'seed density rho_seed', 'organics density rho_org',
+                'seed density rho_seed_p', 'organics density rho_org',
                 'concentrations Cs_p',
                 'concentrations Cs_seed_p'],
         outputs=['particle volumes vs_p']
