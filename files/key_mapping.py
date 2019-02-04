@@ -19,21 +19,11 @@ key_mapping = {
     'rhoOrg': 'organics density rho_org',
     'alphaOrg': 'accommodation coefficient',
     'diamK10org': 'kelvin diameter',
-    
     'Cs_ip_init': 'concentrations Cs_ip',
     'Cv_i_init': 'concentrations Cv_i',
+    'time': 'integration time',
+    'nOrg': 'number of species ni',
+    'nPop': 'number of populations np',
 
-
-
-
-    # figure 3 specific inputs
-
-    # 'particle diameter': 'particle diameters ds_p',
-    # 'molecular mass': 'vapour masses m_i',
-    # 'molecular density': 'organics density rho_org',
-    # 'molecular diameter': 'vapour effective diameters d_i',
-    # 'accommodation coefficient': 'accommodation coefficient',
-
-
-
+    'effectiveai': 'effective accommodation coefficient'
 }

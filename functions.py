@@ -4,11 +4,12 @@ import math
 from default_parameters import dfl
 import utils as utl
 
+
 PRODUCTION_THRESHOLD = -20  # Time threshold for stop net SOA production [min].
 NMtoM = 1e-9
 KGM3toUGM3 = 1e9
 KGtoUG = 1e9
-CM3toM3 = 1e6
+CM3toM3 = 1e-6
 SECtoMIN = 60
 HOURtoSEC = 3600
 GtoKG = 1e-3
@@ -401,7 +402,7 @@ def calculate_diameter_growth_rate(full_deposition_speed, gas_density):
         'sec2hr']
 
 
-def calculate_kelvin_term(particle_diameter, kelvin_diameter):
+def calculate_kelvin_terms_Kp(particle_diameter, kelvin_diameter):
     """
     Calculates the Kelvin Term [-]. #TODO improve function documentation.
 
@@ -418,7 +419,7 @@ def calculate_kelvin_term(particle_diameter, kelvin_diameter):
     :rtype: float
     """
 
-    return 10 ** (kelvin_diameter * np.reciprocal(particle_diameter))
+    return 10 ** (kelvin_diameter / particle_diameter)
 
 
 def calculate_evaporation_timescale(particle_diameter, kelvin_term,
@@ -677,14 +678,16 @@ def calculate_activities_as_ip(concentrations_Cs_ip, concentrations_Cs_p):
     :rtype: numpy.array (2D).
     """
     is_concentration = concentrations_Cs_p != 0  # check if there are 0 values.
-
-    return is_concentration * concentrations_Cs_ip / (
-        (concentrations_Cs_p[:, None] + 1e-20).T)
+    eps =2.2204e-16
+    return is_concentration * utl.__column_by_vector(concentrations_Cs_ip,
+                                                     concentrations_Cs_p +eps,
+                                                     '/')
 
 
 def calculate_condensation_driving_forces_Fvs_ip(activities_as_ip,
                                                  saturation_concentrations_Co_i,
-                                                 concentrations_Cv_i):
+                                                 concentrations_Cv_i,
+                                                 kelvin_terms_Kp):
     """
     Calculates the condensation driving force from vapour (v) to suspended (s)
     phases for each species i and population p [ug/m3].
@@ -701,13 +704,18 @@ def calculate_condensation_driving_forces_Fvs_ip(activities_as_ip,
         vapour concentrations for each species i[ug/m3].
     :type: numpy.array (1D).
 
+    :param: kelvin_terms_Kp:
+        kelvin term for each population p [-].
+    :type: numpy.array (1D).
+
     :return: condensation_driving_forces for each species i and population p
     [ug/m3].
     :rtype: numpy.array (2D).
     """
 
-    return concentrations_Cv_i[:, None] - activities_as_ip * \
-           saturation_concentrations_Co_i[:, None]
+    a = utl.__row_by_vector(activities_as_ip, saturation_concentrations_Co_i, '*')
+    b = utl.__column_by_vector(a, kelvin_terms_Kp, '*')
+    return utl.__row_by_vector(-b, concentrations_Cv_i, '+')
 
 
 def calculate_particle_volumes_vs_p(number_concentrations_Ns_p,
@@ -739,9 +747,10 @@ def calculate_particle_volumes_vs_p(number_concentrations_Ns_p,
 
     :return: particle volume for each population p [m3].
     :rtype: numpy.array (1D).
-    """
 
-    return ((concentrations_Cs_seed_p / seed_density_rho_seed_p)
+    """
+    conv_factor = 1e-3   #  TODO CHECK WHY DOESN T WORK WITH CM3toM3/KGM3toUGM3 CONVERSION FACTORS
+    return conv_factor*((concentrations_Cs_seed_p / seed_density_rho_seed_p)
             + (concentrations_Cs_p /
                organics_density)) / number_concentrations_Ns_p
 
@@ -758,7 +767,7 @@ def calculate_particle_diameters_ds_p(particle_volumes_vs_p):
     :rtype: numpy.array (1D)
     """
 
-    return np.cbrt((6 / scicon.pi * particle_volumes_vs_p))
+    return np.cbrt((6 / scicon.pi * particle_volumes_vs_p))/NMtoM
 
 
 def calculate_collision_frequencies_nus_ip(full_deposition_speed,
@@ -783,14 +792,14 @@ def calculate_collision_frequencies_nus_ip(full_deposition_speed,
     :return: collision frequency between vapour i and particle population p.
     :rtype: numpy.array (2D).
     """
+    conv_fact = scicon.pi*NMtoM**2*SECtoMIN/CM3toM3
+    a =np.square(particle_diameters_ds_p) * number_concentrations_Ns_p
 
-    return scicon.pi * np.square(
-        particle_diameters_ds_p) * number_concentrations_Ns_p \
-           * full_deposition_speed  # CHECK UNITS
+    return conv_fact * utl.__column_by_vector(full_deposition_speed, a, '*')
 
 
 def calculate_condensation_sinks_ks_ip(collision_frequency_nus_ip,
-                                       effective_accommodation_coefficients_ai=1):
+                                       effective_accommodation_coefficient=1):
     """
     Calculates the condensation sinks for vapour of species i on
     suspended population p [1/min].
@@ -799,15 +808,14 @@ def calculate_condensation_sinks_ks_ip(collision_frequency_nus_ip,
         collision frequency between vapour i and particle population p [1/min].
     :type collision_frequency_nus_ip: numpy.array (1D).
 
-    :param: effective_accommodation_coefficient_ai:
-       effective accommodation coefficient [-].
-    :type effective_accommodation_coefficients_ai: ARRAY OR FLOAT???
+    :param: efficient_accommodation_coeff
+    :type float
 
     :return: condensation sinks for vapour of species i on population p [1/min].
     :rtype: numpy.array (2D).
     """
 
-    return effective_accommodation_coefficients_ai * collision_frequency_nus_ip
+    return effective_accommodation_coefficient *collision_frequency_nus_ip
 
 
 def calculate_condensation_fluxes_phi_vs_ip(condensation_sinks_ks_ip,
@@ -828,7 +836,8 @@ def calculate_condensation_fluxes_phi_vs_ip(condensation_sinks_ks_ip,
     :rtype: numpy.array (2D).
     """
 
-    return condensation_sinks_ks_ip * condensation_driving_forces_Fvs_ip
+    return np.multiply(condensation_sinks_ks_ip,
+                       condensation_driving_forces_Fvs_ip)
 
 
 def calculate_vapours_change_rates_dCv_i(condensation_fluxes_phi_vs_ip,
@@ -874,4 +883,10 @@ def calculate_suspended_particles_change_rates_dCs_ip(
     :rtype: numpy.array (2D).
     """
 
-    return net_particle_productions_Ps_ip - condensation_fluxes_phi_vs_ip
+    return net_particle_productions_Ps_ip + condensation_fluxes_phi_vs_ip
+
+
+
+
+
+

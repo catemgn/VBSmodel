@@ -75,3 +75,15 @@ def __extend_to_matrix(x, dim):
     """
 
     return np.array([x, ] * dim).T
+
+
+def __concatenate(*args):
+    """
+    Concatenates matrix and vectors in a single vector (ordered).
+    :param args: vectors and or matrices to be concatenated.
+    :type args: np.array
+    :return: single vector
+    rtype: np.array (1D).
+    """
+
+    return np.concatenate((args), axis=None)

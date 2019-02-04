@@ -4,7 +4,7 @@ import functions as fun
 
 def model():
     """
-    Returns the VBS Dynamics model dispatcher.
+    Returns the VBS Dynamics equations fof concentrations Cv_i and Cs_ip.
     WARNING! make sure that the order of the inputs is exactly the same of the
     order of inputs in the corresponding function.
 
@@ -13,7 +13,7 @@ def model():
     :rtype: schedula.Dispatcher
     """
 
-    # DEPOSITION SPEED DYNAMICS MODULE
+    # DEPOSITION SPEED MODULE
 
     dsp = sh.Dispatcher(
         name='calculate deposition speeds dynamics',
@@ -114,14 +114,8 @@ def model():
     )
 
     dsp.add_function(
-        function=fun.calculate_kelvin_term,
-        inputs=['particle diameters ds_p', 'kelvin diameter'],
-        outputs=['kelvin term']
-    )
-
-    dsp.add_function(
         function=fun.calculate_evaporation_timescale,
-        inputs=['particle diameters ds_p', 'kelvin term', 'full deposition '
+        inputs=['particle diameters ds_p', 'kelvin terms Kp', 'full deposition '
                                                           'speeds',
                 'saturation concentrations Co_i', 'organics density rho_org'],
         outputs=['evaporation timescale']
@@ -148,13 +142,38 @@ def model():
         description='Provides the VBS dynamics equations.'
     )
 
+    dsp.add_data(data_id='inputs')
+    dsp2.add_data(data_id='number of species ni')
+    dsp2.add_data(data_id='number of populations np')
+    dsp2.add_data(data_id='saturation concentrations Co_i')
+    dsp2.add_data(data_id='concentrations Cs_ip')
+    dsp2.add_data(data_id='concentrations Cv_i')
+    dsp2.add_data(data_id='concentrations Cs_ip')
+    dsp2.add_data(data_id='net particle productions Ps_ip')
+    dsp2.add_data(data_id='fraction yields yi')
+    dsp2.add_data(data_id='integration time')
+    dsp2.add_data(data_id='precursor loss Lprec')
+    dsp2.add_data(data_id='number concentrations Ns_p')
+    dsp2.add_data(data_id='organics density rho_org')
+    dsp2.add_data(data_id='seed density rho_seed_p')
+    dsp2.add_data(data_id='seed diameters d_seed_p')
+    dsp2.add_data(data_id='number concentrations Ns_p')
+    dsp2.add_data(data_id='vapour effective diameters d_i')
+    dsp2.add_data(data_id='vapour masses m_i')
+    dsp2.add_data(data_id='temperature', default_value=298)  # temperature [K].
+    dsp2.add_data(data_id='pressure', default_value=101325)  # pressure [Pa].
+    dsp2.add_data(data_id='kelvin diameter', default_value=4.5) # kelvin # diameter for organics [nm].
+    dsp2.add_data(data_id='accommodation coefficient', defaults_value=1)
+    dsp2.add_data(data_id='effective accommodation coefficient',
+                  defaults_value=1)
+
     dsp2.add_dispatcher(
         dsp,
         dsp_id='calculate deposition speeds dynamics',
         inputs=['particle diameters ds_p', 'organics density rho_org',
                 'vapour effective diameters d_i', 'vapour masses m_i',
                 'temperature', 'saturation concentrations Co_i', 'pressure',
-                'kelvin diameter', 'accommodation coefficient', 'concentrations Cv_i'],
+                'kelvin terms Kp', 'accommodation coefficient', 'concentrations Cv_i'],
         outputs=['full deposition speeds', 'collision frequency on '
                                            'particles', 'evaporation timescale']
     )
@@ -198,7 +217,7 @@ def model():
 
     dsp2.add_function(
         function=fun.set_precursor_loss_Lprec,
-        inputs=['production_time', 'precursor loss Lprec'],
+        inputs=['integration time', 'precursor loss Lprec'],
         outputs=['precursor loss Lprec']
     )
 
@@ -224,6 +243,12 @@ def model():
     )
 
     dsp2.add_function(
+        function=fun.calculate_kelvin_terms_Kp,
+        inputs=['particle diameters ds_p', 'kelvin diameter'],
+        outputs=['kelvin terms Kp']
+    )
+
+    dsp2.add_function(
         function=fun.calculate_collision_frequencies_nus_ip,
         inputs=['full deposition speeds', 'particle diameters ds_p',
                 'number concentrations Ns_p'],
@@ -233,7 +258,7 @@ def model():
     dsp2.add_function(
         function=fun.calculate_condensation_sinks_ks_ip,
         inputs=['collision frequencies nus_ip',
-                'effective accommodation coefficient ai'],
+                'effective accommodation coefficient'],
         outputs=['condensation sinks ks_ip']
     )
 
@@ -246,7 +271,7 @@ def model():
     dsp2.add_function(
         function=fun.calculate_condensation_driving_forces_Fvs_ip,
         inputs=['activities as_ip', 'saturation concentrations Co_i',
-                'concentrations Cv_i'],
+                'concentrations Cv_i', 'kelvin terms Kp'],
         outputs=['condensation driving forces Fvs_ip']
     )
 
@@ -272,3 +297,27 @@ def model():
     )
 
     return dsp2
+
+
+# def define_differential_equations(inputs):
+#     """"
+#     Return the VBS Dynamics equations in a form to be passed to the ode solver.
+#     """
+#     dsp = model.copy()
+#     for k, v in dsp(defaults).items():
+#         dsp.set_default_value(k, v)
+#     dsp.add_function(
+#          ‘split_inputs’,
+#           lambda i, j, x: (x[:i], x[i:].reshape(i,j)),
+#           [‘ni’, ‘np’, ‘inputs’],  # N.b. ‘ni’ and ‘np’ have to be defined into defaults.
+#           [‘cvi’, ‘csip’]
+#     )
+#     dsp.add_function(
+#          ‘merge_outputs’,
+#           lambda x, y: np.append(x, y.ravel()),
+#           [‘dcvi’, ‘dcsip’],
+#           [‘outputs’],
+#     )
+#     return sh.DispatchPipe(dsp, [‘inputs’], [‘outputs’])
+
+
