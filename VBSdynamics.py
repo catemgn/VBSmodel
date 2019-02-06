@@ -17,7 +17,8 @@ def define_differential_equations(parameters):
     # split the inputs.
     dsp.add_function('split_initial_conditions',
                      lambda i, j, x: (x[:i], x[i:].reshape(i, j)),
-                     ['number of species ni', 'number of populations np','inputs'],
+                     ['number of species ni', 'number of populations np',
+                      'inputs'],
                      ['concentrations Cv_i', 'concentrations Cs_ip']
                      )
     # pack outputs together.
@@ -48,17 +49,18 @@ def ode_solve_dynamics(concentrations, time, dyn_function):
 
 
 def solve_dyn():
-
     solver = sh.Dispatcher(
         name='Solve VBS Dynamics',
-        description='Solve the VBS Dynamics equations fof concentrations Cv_i and Cs_ip.'
+        description='Solve the VBS Dynamics equations fof concentrations Cv_i '
+                    'and Cs_ip.'
     )
 
-    solver.add_function('pack inputs',
-                     lambda x, y: np.concatenate((x, y), axis=None),
-                        ['concentrations Cv_i', 'concentrations Cs_ip'], ['inputs'])
-
-    solver.add_data(data_id='parameters', default_value={})
+    # TODO Find a more elegant and compact way to do this function.
+    @sh.add_function(solver, inputs=['initial conditions'], outputs=['packed '
+                     'IC', 'integration time'])
+    def pack_inputs(dict):
+       ic= np.append(dict['concentrations Cv_i'], dict['concentrations Cs_ip'])
+       return ic, dict['integration time']
 
     solver.add_function(
         function_id='define_differential_equations',
@@ -69,10 +71,9 @@ def solve_dyn():
 
     solver.add_function(
         function_id='solve VBS dynamics',
-        function=ode_solve_dynamics,
-        inputs=['inputs', 'integration time', 'dynamics equations'],
+        function=print(1),
+        inputs=['packed IC', 'integration time', 'dynamics equations'],
         outputs=['outputs']
     )
 
     return solver
-
