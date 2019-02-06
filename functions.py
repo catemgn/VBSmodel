@@ -530,7 +530,7 @@ def calculate_concentrations_Cs_i(concentrations_Cs_ip):
         suspended concentrations for each species i [ug/m3].
     :rtype: numpy.array (1D).
     """
-    return concentrations_Cs_ip.sum(axis=0)  # sum over columns.
+    return concentrations_Cs_ip.sum(axis=1)  # sum over rows.
 
 
 def calculate_concentrations_Cs_p(concentrations_Cs_ip):
@@ -584,10 +584,10 @@ def calculate_concentrations_Cs_seed_p(seed_density_rho_seed_p,
     :return: seed concentrations C_seed_p [ug/m3].
     :rtype: numpy.array (1D).
     """
-
-    return scicon.pi / 6 * (seed_diameters_d_seed_p * NMtoM) ** 3 * (
-            seed_density_rho_seed_p * KGM3toUGM3) * (
-                   number_concetrations_Ns_p * CM3toM3)
+    conv_fact = scicon.pi / 6 * NMtoM**3 * KGM3toUGM3 /CM3toM3
+    return conv_fact * (seed_diameters_d_seed_p) ** 3 * (
+            seed_density_rho_seed_p) * (
+                   number_concetrations_Ns_p)
 
 
 def calculate_concentration_Cs_seed(concentrations_Cs_seed_p):
@@ -749,7 +749,7 @@ def calculate_particle_volumes_vs_p(number_concentrations_Ns_p,
     :rtype: numpy.array (1D).
 
     """
-    conv_factor = 1e-3   #  TODO CHECK WHY DOESN T WORK WITH CM3toM3/KGM3toUGM3 CONVERSION FACTORS
+    conv_factor = CM3toM3/KGM3toUGM3
     return conv_factor*((concentrations_Cs_seed_p / seed_density_rho_seed_p)
             + (concentrations_Cs_p /
                organics_density)) / number_concentrations_Ns_p
