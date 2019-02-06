@@ -3,7 +3,7 @@ Defines the file processing the VBS Dynamics model.
 """
 
 import schedula as sh
-from VBSmodel import model
+from VBSdynamics import solve_dyn
 import pandas as pd
 
 process = sh.BlueDispatcher(name='Processing Model')
@@ -12,7 +12,7 @@ process = sh.BlueDispatcher(name='Processing Model')
 # BluePrint create a 'canvas' for the Dispatcher. It is not compiled yet.
 
 
-@sh.add_function(process, outputs=['raw parameters', 'raw initial conditions'])
+@sh.add_function(process, outputs=['raw inputs'])
 def read_data(input_fpath):
     """
     Reads the input files
@@ -26,9 +26,9 @@ def read_data(input_fpath):
     :rtype: dict
     """
 
-    from files.VBSinputs import VBSsetup, dynamics_IC
+    from files.VBSinputs import VBSsetup
 
-    return VBSsetup, dynamics_IC
+    return VBSsetup
 
 
 process.add_data(
@@ -36,20 +36,22 @@ process.add_data(
     description='Dictionary renaming keys.'
 )
 
-process.add_function('parse data',
-                     lambda keys, dict1, dict2: (
-                         sh.map_dict(keys, dict1), sh.map_dict(keys, dict2)),
-                     ['key_mapping', 'raw parameters',
-                      'raw initial conditions'],
-                     ['parameters', 'initial conditions']
-                     )
 
-process.add_data(data_id='parameters')
+# TODO Find a more elegant and compact way to do this function.
+@sh.add_function(process, inputs=['key_mapping', 'raw inputs'], outputs=[
+    'inputs'])
+def parse_data(nested_keys, nested_inputs):
+    par = sh.map_dict(nested_keys['parameters'], nested_inputs['parameters'])
+    ic = sh.map_dict(nested_keys['initial conditions'],
+                     nested_inputs['initial conditions'])
+
+    return sh.map_list(('parameters', 'initial conditions'), par, ic)
+
 
 process.add_function(
     function_id='compute VBS Dynamics',
-    function=sh.SubDispatch(model()),
-    inputs=['parameters', 'initial conditions'],
+    function=sh.SubDispatch(solve_dyn()),
+    inputs=['inputs'],
     outputs=['outputs'],
     description='Executes the computational model.'
 )

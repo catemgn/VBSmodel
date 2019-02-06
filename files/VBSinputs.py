@@ -7,6 +7,7 @@ This dictionary provides the input setup for calculations.
 VBSsetup = {
 
     # general properties:
+  'parameters':{
 
     'T': 300,  # temperature [K}.
     'P': 101325,  # pressure [Pa].
@@ -20,7 +21,7 @@ VBSsetup = {
 
     'diamSeed': np.array([100]),  # diameter of the  seed particle in the
     # populations [nm].
-    'rhoSeed': np.array([1.77e3]),  # densities of the seed particle of
+    'rhoSeed': np.array([1770]),  # densities of the seed particle of
     # population [kg/m3].
     'Ns_p': np.array([16000]),  # number concentration of suspended
     # particles for each populations [1/cm3].
@@ -28,21 +29,22 @@ VBSsetup = {
     'diamOrg': np.ones(4)*0.8,  # effective vapour diameter for each
     # species# TODO units?.
     'alphaOrg': 1,  # mass accommodation coefficient for organics [-].
-    'rhoOrg': 1.4e3,  # density of organics [kg/m3].
+    'rhoOrg': 1400,  # density of organics [kg/m3].
     'diamK10org': 4.5,  # kelvin diameter for organics [nm].
-
     'net particle productions Ps_ip': np.full((4, 1), 0),
-    'effectiveai' :1
-}
+    'effectiveai': 1
+},
 
+    'initial conditions': {
 
-dynamics_IC = {
-    'time': np.arange(-100, 0, 0.142),
+    'time': (-100, 0),
     # initial conditions
     'Cv_i_init': np.zeros(4),  # initial vapours
     # concentrations for each
     # species i [ug/m3].
-    'Cs_ip_init': np.full((4, 1), 0)  # initial suspended particle
+    'Cs_ip_init': np.full((4, 1), 0)  # initial suspended
+    # particle
     # concentrations for each species i (row) and population p (column) [ug/m3].
+}
 }
 
